@@ -30,11 +30,23 @@ def _serialize_session(session: AttackSession) -> dict:
         "protocol": session.protocol,
         "username": session.username,
         "authentication_result": session.authentication_result,
-        "start_time": session.start_time.isoformat() if session.start_time else None,
-        "end_time": session.end_time.isoformat() if session.end_time else None,
+        "start_time": (
+            session.start_time.isoformat()
+            if session.start_time
+            else None
+        ),
+        "end_time": (
+            session.end_time.isoformat()
+            if session.end_time
+            else None
+        ),
         "duration": session.duration,
         "command_count": session.command_count,
-        "created_at": session.created_at.isoformat() if session.created_at else None,
+        "created_at": (
+            session.created_at.isoformat()
+            if session.created_at
+            else None
+        ),
     }
 
 
@@ -53,6 +65,22 @@ def get_events():
     }), 200
 
 
+@api_bp.get("/api/events/<int:event_id>")
+def get_event(event_id: int):
+    event = db.session.get(CowrieEvent, event_id)
+
+    if event is None:
+        return jsonify({
+            "success": False,
+            "error": "Event not found",
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "event": _serialize_event(event),
+    }), 200
+
+
 @api_bp.get("/api/sessions")
 def get_sessions():
     sessions = (
@@ -68,15 +96,83 @@ def get_sessions():
     }), 200
 
 
-@api_bp.get("/api/stats")
-def get_stats():
-    session_count = db.session.query(AttackSession).count()
-    event_count = db.session.query(CowrieEvent).count()
+@api_bp.get("/api/sessions/<int:session_id>")
+def get_session(session_id: int):
+    session = db.session.get(AttackSession, session_id)
+
+    if session is None:
+        return jsonify({
+            "success": False,
+            "error": "Session not found",
+        }), 404
 
     return jsonify({
         "success": True,
-        "stats": {
-            "total_sessions": session_count,
-            "total_events": event_count,
-        },
+        "session": _serialize_session(session),
+    }), 200
+
+
+def _build_dashboard_stats() -> dict:
+    total_sessions = db.session.query(AttackSession).count()
+    total_events = db.session.query(CowrieEvent).count()
+
+    total_commands = (
+        db.session.query(db.func.coalesce(db.func.sum(AttackSession.command_count), 0))
+        .scalar()
+    )
+
+    unique_source_ips = (
+        db.session.query(
+            db.func.count(db.func.distinct(CowrieEvent.source_ip))
+        )
+        .scalar()
+    )
+
+    return {
+        "total_sessions": total_sessions,
+        "total_events": total_events,
+        "total_commands": int(total_commands or 0),
+        "unique_source_ips": int(unique_source_ips or 0),
+    }
+
+
+@api_bp.get("/api/stats")
+def get_stats():
+    stats = _build_dashboard_stats()
+
+    return jsonify({
+        "success": True,
+        "stats": stats,
+    }), 200
+
+
+@api_bp.get("/api/dashboard")
+def get_dashboard():
+    stats = _build_dashboard_stats()
+
+    recent_events = (
+        CowrieEvent.query
+        .order_by(CowrieEvent.timestamp.desc())
+        .limit(5)
+        .all()
+    )
+
+    recent_sessions = (
+        AttackSession.query
+        .order_by(AttackSession.start_time.desc())
+        .limit(5)
+        .all()
+    )
+
+    return jsonify({
+        "success": True,
+        "stats": stats,
+        "recent_events": [
+            _serialize_event(event)
+            for event in recent_events
+        ],
+        "recent_sessions": [
+            _serialize_session(session)
+            for session in recent_sessions
+        ],
     }), 200
