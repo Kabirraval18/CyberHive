@@ -8,12 +8,13 @@ gsap.registerPlugin(ScrollTrigger)
 
 function App() {
   const pageRef = useRef(null)
+  const animationsInitialized = useRef(false)
   const lenis = useLenis()
 
   const [dashboard, setDashboard] = useState(null)
+  const [activity, setActivity] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
   /*
    * ------------------------------------------------------
    * Lenis <-> GSAP synchronization
@@ -51,35 +52,108 @@ function App() {
    */
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      try {
+  let active = true
+  let firstLoad = true
+  let timeoutId = null
+
+  const loadDashboard = async () => {
+    try {
+      if (firstLoad) {
         setLoading(true)
         setError(null)
+      }
 
-        const response = await fetch('/api/dashboard')
+      const [dashboardResponse, activityResponse] =
+        await Promise.all([
+          fetch(`/api/dashboard?_=${Date.now()}`, {
+            cache: 'no-store',
+          }),
+          fetch(`/api/analytics/activity?_=${Date.now()}`, {
+            cache: 'no-store',
+          }),
+        ])
 
-        if (!response.ok) {
-          throw new Error(`API request failed (${response.status})`)
+      if (!dashboardResponse.ok) {
+        throw new Error(
+          `Dashboard API request failed (${dashboardResponse.status})`,
+        )
+      }
+
+      if (!activityResponse.ok) {
+        throw new Error(
+          `Analytics API request failed (${activityResponse.status})`,
+        )
+      }
+
+      const [dashboardData, activityData] =
+        await Promise.all([
+          dashboardResponse.json(),
+          activityResponse.json(),
+        ])
+
+      if (!dashboardData.success) {
+        throw new Error(
+          dashboardData.error ||
+            'Unable to load dashboard data',
+        )
+      }
+
+      if (!activityData.success) {
+        throw new Error(
+          activityData.error ||
+            'Unable to load analytics data',
+        )
+      }
+
+      if (active) {
+        setDashboard(dashboardData)
+
+      setActivity(
+        Array.isArray(activityData.activity)
+          ? [...activityData.activity].sort(
+              (a, b) =>
+                new Date(b.timestamp).getTime() -
+                new Date(a.timestamp).getTime(),
+            )
+          : [],
+      )
+
+        setError(null)
+      }
+    } catch (err) {
+      if (active && firstLoad) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Unable to load telemetry',
+        )
+      }
+    } finally {
+      if (active) {
+        if (firstLoad) {
+          setLoading(false)
         }
 
-        const data = await response.json()
+        firstLoad = false
 
-        if (!data.success) {
-          throw new Error(
-            data.error || 'Unable to load dashboard data',
-          )
-        }
-
-        setDashboard(data)
-      } catch (err) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
+        timeoutId = window.setTimeout(
+          loadDashboard,
+          5000,
+        )
       }
     }
+  }
 
-    loadDashboard()
-  }, [])
+  loadDashboard()
+
+  return () => {
+    active = false
+
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId)
+    }
+  }
+}, [])
 
   /*
    * ------------------------------------------------------
@@ -88,9 +162,15 @@ function App() {
    */
 
   useEffect(() => {
-    if (!dashboard || !pageRef.current) {
+    if (
+      !dashboard ||
+      !pageRef.current ||
+      animationsInitialized.current
+    ) {
       return undefined
     }
+
+    animationsInitialized.current = true
 
     window.scrollTo({
       top: 0,
@@ -257,32 +337,7 @@ function App() {
        * Metric counters
        */
 
-      gsap.utils
-        .toArray('.metric-value')
-        .forEach((element) => {
-          const target = Number(element.dataset.value)
-
-          if (!Number.isFinite(target) || target === 0) {
-            return
-          }
-
-          const counter = {
-            value: 0,
-          }
-
-          gsap.to(counter, {
-            value: target,
-            duration: 1.15,
-            delay: 0.2,
-            ease: 'power2.out',
-
-            onUpdate: () => {
-              element.textContent = Math.round(
-                counter.value,
-              )
-            },
-          })
-        })
+      
 
       requestAnimationFrame(() => {
         ScrollTrigger.refresh()
@@ -379,6 +434,75 @@ function App() {
     recent_events: recentEvents,
     recent_sessions: recentSessions,
   } = dashboard
+
+  const formatActivityTimestamp = (timestamp) => {
+    if (!timestamp) {
+      return 'UNKNOWN TIME'
+    }
+
+    const date = new Date(timestamp)
+
+    if (Number.isNaN(date.getTime())) {
+      return 'UNKNOWN TIME'
+    }
+
+    const parts = new Intl.DateTimeFormat('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).formatToParts(date)
+
+    const getPart = (type) =>
+      parts.find((part) => part.type === type)?.value || ''
+
+    const year = getPart('year')
+    const month = getPart('month')
+    const day = getPart('day')
+    const hour = getPart('hour')
+    const minute = getPart('minute')
+    const second = getPart('second')
+
+    const fraction =
+      timestamp.match(/\.(\d+)/)?.[1] || '000000'
+
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}.${fraction.slice(0, 6)} IST`
+  }
+
+  const getActivityDescription = (item) => {
+    if (item.command) {
+      return item.command
+    }
+
+    switch (item.event_type) {
+      case 'cowrie.session.connect':
+        return 'Session connected'
+
+      case 'cowrie.session.closed':
+        return 'Session closed'
+
+      case 'cowrie.log.closed':
+        return 'TTY log closed'
+
+      case 'cowrie.login.failed':
+        return 'Login failed'
+
+      case 'cowrie.login.success':
+        return 'Login successful'
+
+      case 'cowrie.session.params':
+        return 'Session parameters captured'
+
+      default:
+        return 'Event recorded'
+    }
+  }
+
+  const activityCount = activity.length
 
   /*
    * ------------------------------------------------------
@@ -536,55 +660,94 @@ function App() {
               </div>
 
               <span className="future-chip">
-                ANALYTICS MODULE
+                {activityCount} SIGNAL{activityCount === 1 ? '' : 'S'}
               </span>
             </div>
 
             <div className="chart-stage">
-              <div className="chart-grid-lines">
-                <span />
-                <span />
-                <span />
-                <span />
-              </div>
+              {activity.length === 0 ? (
+                <div className="activity-empty">
+                  <span>NO LIVE TELEMETRY</span>
 
-              <div className="chart-bars">
-                {Array.from({ length: 32 }).map(
-                  (_, index) => (
-                    <span
-                      key={index}
-                      className="chart-bar"
-                      style={{
-                        height: `${18 + ((index * 23) % 62)}%`,
-                      }}
-                    />
-                  ),
-                )}
-              </div>
+                  <strong>
+                    Incoming Cowrie activity will appear here
+                    with precise timestamps and source intelligence.
+                  </strong>
+                </div>
+              ) : (
+                <div className="activity-timeline">
+                  <div className="activity-timeline-line" />
 
-              <div className="chart-overlay">
-                <span>
-                  WAITING FOR LIVE DATA
-                </span>
+                  {activity.map((item, index) => (
+                    <div
+                      className="activity-item"
+                      key={`${item.activity_type}-${item.event_id || item.session_id}-${item.timestamp}-${index}`}
+                    >
+                      <div className="activity-marker">
+                        <span />
+                      </div>
 
-                <strong>
-                  This surface will become the real-time
-                  threat timeline.
-                </strong>
-              </div>
+                      <div className="activity-content">
+                        <div className="activity-meta">
+                          <span className="activity-time">
+                            {formatActivityTimestamp(item.timestamp)}
+                          </span>
 
-              <div className="chart-axis">
-                <span>00:00</span>
-                <span>06:00</span>
-                <span>12:00</span>
-                <span>18:00</span>
-                <span>24:00</span>
-              </div>
+                          <span
+                            className={`activity-type activity-type-${item.activity_type}`}
+                          >
+                            {item.activity_type === 'event'
+                              ? 'EVENT'
+                              : 'SESSION'}
+                          </span>
+                        </div>
+
+                        <div className="activity-main">
+                          <strong>
+                            {item.source_ip || 'UNKNOWN SOURCE'}
+                          </strong>
+
+                          <span>
+                            {item.activity_type === 'event'
+                              ? item.event_type || 'Unknown event'
+                              : item.protocol || 'Unknown protocol'}
+                          </span>
+                        </div>
+
+                        <div className="activity-detail">
+                          {item.activity_type === 'event' ? (
+                            <>
+                              <span>
+                                SESSION {item.session_id || 'UNKNOWN'}
+                              </span>
+
+                              <span>
+                                {getActivityDescription(item)}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span>
+                                USER {item.username || 'UNKNOWN'}
+                              </span>
+
+                              <span>
+                                {item.command_count} COMMAND
+                                {item.command_count === 1 ? '' : 'S'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="panel-footer">
+            <div className="panel-footer" >
               <span>DATA SOURCE / COWRIE</span>
-              <span>BKLiT / FUTURE LAYER</span>
+              <span>PRECISE EVENT TIMELINE / IST</span>
             </div>
           </article>
 
@@ -631,8 +794,7 @@ function App() {
                       </div>
 
                       <strong>
-                        {event.command ||
-                          'No command recorded'}
+                        {getActivityDescription(event)}
                       </strong>
                     </div>
                   </div>

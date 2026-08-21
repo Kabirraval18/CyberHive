@@ -168,7 +168,7 @@ select {
 }
 
 .brand-copy strong {
-  font-size: 16px;
+  font-size: 20px;
   line-height: 1;
   letter-spacing: -0.4px;
 }
@@ -178,7 +178,7 @@ select {
 
   color: var(--muted);
 
-  font-size: 8px;
+  font-size: 14px;
   line-height: 1;
 
   font-weight: 800;
@@ -194,7 +194,7 @@ select {
 .nav-caption {
   color: var(--muted);
 
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 1.25px;
 }
@@ -211,7 +211,7 @@ select {
   border: 1px solid var(--line);
   border-radius: 999px;
 
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 1px;
 }
@@ -268,7 +268,7 @@ select {
 .eyebrow {
   color: var(--muted);
 
-  font-size: 9px;
+  font-size: 20px;
   font-weight: 900;
   letter-spacing: 1.7px;
 }
@@ -357,7 +357,7 @@ select {
 
   color: var(--muted-dark);
 
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 800;
 
   letter-spacing: 0.9px;
@@ -691,7 +691,7 @@ select {
 .field-core span {
   color: var(--muted);
 
-  font-size: 7px;
+  font-size: 13px;
 
   font-weight: 900;
 
@@ -725,7 +725,7 @@ select {
 
   color: var(--muted-dark);
 
-  font-size: 7px;
+  font-size: 9px;
 
   font-weight: 900;
 
@@ -736,16 +736,16 @@ select {
 
 .label-a {
   top: 48%;
-  left: -11%;
+  left: -14%;
 }
 
 .label-b {
-  right: -11%;
+  right: -14%;
   top: 48%;
 }
 
 .label-c {
-  left: 41%;
+  left: 38%;
   bottom: 97%;
 }
 
@@ -776,7 +776,7 @@ select {
 
   color: var(--muted);
 
-  font-size: 10px;
+  font-size: 12px;
 
   line-height: 1.5;
 }
@@ -847,7 +847,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 8px;
+  font-size: 14px;
 
   font-weight: 900;
 }
@@ -882,7 +882,7 @@ select {
 
   color: var(--muted);
 
-  font-size: 8px;
+  font-size: 14px;
 
   font-weight: 900;
 
@@ -908,7 +908,7 @@ select {
 
   color: var(--muted);
 
-  font-size: 8px;
+  font-size: 12px;
 
   font-weight: 800;
 
@@ -998,7 +998,7 @@ select {
 .panel-top h2 {
   margin: 6px 0 0;
 
-  font-size: 21px;
+  font-size: 31px;
 
   letter-spacing: -0.8px;
 }
@@ -1018,7 +1018,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 7px;
+  font-size: 10px;
 
   font-weight: 900;
 
@@ -1044,41 +1044,16 @@ select {
   height: 295px;
 
   padding:
-    28px
+    0
     22px
-    20px;
+    0;
 
   position: relative;
+
+  overflow: hidden;
 }
 
-.chart-grid-lines {
-  position: absolute;
 
-  inset:
-    28px
-    22px
-    44px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  justify-content:
-    space-between;
-}
-
-.chart-grid-lines span {
-  width: 100%;
-
-  border-top:
-    1px dashed
-    rgba(
-      23,
-      26,
-      37,
-      0.07
-    );
-}
 
 .chart-bars {
   position: absolute;
@@ -1186,22 +1161,24 @@ select {
   bottom: 18px;
 
   display: flex;
-
+  z-index: 3;
   justify-content:
     space-between;
 
   color:
     var(--muted);
 
-  font-size: 7px;
+  font-size: 9px;
 }
 
 .panel-footer {
   min-height: 43px;
 
   padding:
-    12px
-    18px;
+    35px
+    20px 
+    0px
+    20px;
 
   display: flex;
 
@@ -1214,7 +1191,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 7px;
+  font-size: 14px;
 
   font-weight: 800;
 
@@ -1258,9 +1235,10 @@ select {
   color:
     var(--muted);
 
-  font-size: 8px;
+  font-size: 14px;
 
   font-weight: 900;
+  padding-top: 3px;
 }
 
 .signal-body {
@@ -1280,7 +1258,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 7px;
+  font-size: 16px;
 }
 
 .signal-body strong {
@@ -1296,7 +1274,7 @@ select {
     Consolas,
     monospace;
 
-  font-size: 10px;
+  font-size: 16px;
 
   font-weight: 500;
 
@@ -1358,7 +1336,7 @@ select {
   color:
     var(--blue);
 
-  font-size: 9px;
+  font-size: 16px;
 
   font-weight: 900;
 }
@@ -1369,7 +1347,7 @@ select {
     Consolas,
     monospace;
 
-  font-size: 10px;
+  font-size: 16px;
 }
 
 .session-copy div {
@@ -1384,7 +1362,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 8px;
+  font-size: 16px;
 }
 
 .session-commands {
@@ -1407,7 +1385,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 7px;
+  font-size: 12px;
 }
 
 /* ==================================================
@@ -1595,7 +1573,7 @@ select {
 }
 
 .empty-state strong {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .empty-state p {
@@ -1609,7 +1587,7 @@ select {
   color:
     var(--muted);
 
-  font-size: 9px;
+  font-size: 14px;
 
   line-height: 1.5;
 }
@@ -1640,7 +1618,7 @@ select {
   color:
     #9da2ad;
 
-  font-size: 7px;
+  font-size: 16px;
 
   font-weight: 900;
 
@@ -1841,6 +1819,215 @@ html.lenis body {
     transform:
       translateX(340%);
   }
+}
+
+/* ==================================================
+   LIVE ACTIVITY TIMELINE
+================================================== */
+
+.activity-timeline {
+  position: relative;
+  z-index: 2;
+
+  width: 100%;
+  height: 100%;
+  max-height: none;
+
+  padding: 18px 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.activity-timeline::-webkit-scrollbar {
+  width: 5px;
+}
+
+.activity-timeline::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.activity-timeline::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.activity-timeline-line {
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 7px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    rgba(70, 108, 255, 0.35),
+    rgba(123, 97, 255, 0.12)
+  );
+}
+
+.activity-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 15px 1fr;
+  gap: 14px;
+  padding: 0 0 18px;
+}
+
+.activity-item:last-child {
+  padding-bottom: 0;
+}
+
+.activity-marker {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding-top: 5px;
+}
+
+.activity-marker span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow:
+    0 0 0 4px rgba(70, 108, 255, 0.09);
+}
+
+.activity-item:nth-child(3n) .activity-marker span {
+  background: var(--violet);
+  box-shadow:
+    0 0 0 4px rgba(123, 97, 255, 0.09);
+}
+
+.activity-item:nth-child(4n) .activity-marker span {
+  background: var(--coral);
+  box-shadow:
+    0 0 0 4px rgba(239, 118, 93, 0.09);
+}
+
+.activity-content {
+  min-width: 0;
+  padding-bottom: 14px;
+}
+
+.activity-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.activity-time {
+  color: var(--muted);
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  font-size: 16px;
+  letter-spacing: 0.15px;
+}
+
+.activity-type {
+  flex: 0 0 auto;
+  padding: 5px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+.activity-type-event {
+  color: var(--blue);
+  background: var(--blue-soft);
+  border: 1px solid rgba(70, 108, 255, 0.14);
+}
+
+.activity-type-session {
+  color: var(--violet);
+  background: var(--violet-soft);
+  border: 1px solid rgba(123, 97, 255, 0.14);
+}
+
+.activity-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.activity-main strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  font-size: 16px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-main span {
+  flex: 0 0 auto;
+  max-width: 48%;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-detail {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.activity-detail span:last-child {
+  max-width: 55%;
+  overflow: hidden;
+  font-family:
+    "SFMono-Regular",
+    Consolas,
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activity-empty {
+  min-height: 295px;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.activity-empty span {
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1.6px;
+}
+
+.activity-empty strong {
+  max-width: 360px;
+  margin-top: 8px;
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.55;
 }
 
 /* ==================================================
@@ -2103,5 +2290,28 @@ html.lenis body {
   .error-index {
     font-size:
       64px;
+  }
+
+  .activity-main {
+    display: block;
+  }
+
+  .activity-main span {
+    display: block;
+    max-width: 100%;
+    margin-top: 4px;
+  }
+
+  .activity-detail {
+    display: block;
+  }
+
+  .activity-detail span {
+    display: block;
+  }
+
+  .activity-detail span:last-child {
+    max-width: 100%;
+    margin-top: 4px;
   }
 }

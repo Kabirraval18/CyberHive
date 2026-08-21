@@ -1,9 +1,26 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Iterable
 
 from backend.extensions import db
 from backend.models import AttackSession, CowrieEvent
+
+def _to_utc_naive(value: datetime | None) -> datetime | None:
+    """
+    Normalize a datetime to naive UTC.
+
+    SQLite/SQLAlchemy may return DateTime values without tzinfo,
+    while parsed Cowrie timestamps are timezone-aware. Converting
+    everything to naive UTC gives us one consistent representation
+    for database comparisons and storage.
+    """
+    if value is None:
+        return None
+
+    if value.tzinfo is None:
+        return value
+
+    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def _extract_protocol(event: dict[str, Any]) -> str:
@@ -46,7 +63,7 @@ def _get_or_create_session(
         source_ip=event.get("source_ip") or "unknown",
         protocol=_extract_protocol(event),
         username=event.get("username"),
-        start_time=event.get("timestamp"),
+        start_time=_to_utc_naive(event.get("timestamp")),
         command_count=0,
     )
 
@@ -60,13 +77,17 @@ def _update_session(
     event: dict[str, Any],
 ) -> None:
     """Update session-level information from an event."""
-    timestamp = event.get("timestamp")
+
+    timestamp = _to_utc_naive(event.get("timestamp"))
 
     if timestamp is not None:
-        if session.start_time is None or timestamp < session.start_time:
+        current_start = _to_utc_naive(session.start_time)
+        current_end = _to_utc_naive(session.end_time)
+
+        if current_start is None or timestamp < current_start:
             session.start_time = timestamp
 
-        if session.end_time is None or timestamp > session.end_time:
+        if current_end is None or timestamp > current_end:
             session.end_time = timestamp
 
     if session.source_ip == "unknown" and event.get("source_ip"):
@@ -83,7 +104,7 @@ def _update_session(
 
     if event.get("command") is not None:
         session.command_count += 1
-
+        
 
 def ingest_events(events: Iterable[dict[str, Any]]) -> int:
     """
