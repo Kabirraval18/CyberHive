@@ -1,3 +1,4 @@
-from backend.app import create_app
+"""
+CyberHive backend package.
 
-__all__ = ["create_app"]
+"""
