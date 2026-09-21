@@ -106,13 +106,24 @@ def _update_session(
         session.command_count += 1
         
 
-def ingest_events(events: Iterable[dict[str, Any]]) -> int:
+def ingest_events(
+    events: Iterable[dict[str, Any]],
+    *,
+    return_inserted_events: bool = False,
+) -> int | list[dict[str, Any]]:
     """
     Persist normalized Cowrie events into the database.
 
-    Returns the number of newly inserted events.
+    By default, returns the number of newly inserted events.
+
+    When return_inserted_events=True, returns the normalized
+    event dictionaries that were actually inserted.
+
+    Duplicate events are still identified using event_id.
     """
+
     inserted_count = 0
+    inserted_events: list[dict[str, Any]] = []
 
     for event in events:
         event_id = event.get("event_id")
@@ -146,7 +157,11 @@ def ingest_events(events: Iterable[dict[str, Any]]) -> int:
             _update_session(session, event)
 
         inserted_count += 1
+        inserted_events.append(event)
 
     db.session.commit()
+
+    if return_inserted_events:
+        return inserted_events
 
     return inserted_count
