@@ -4,6 +4,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from flask import current_app, has_app_context
+
 from backend.ingestion.cowrie_ingest import ingest_events
 
 
@@ -17,6 +19,8 @@ class ProcessingResult:
     processing_errors: list[dict[str, Any]] = field(
         default_factory=list
     )
+    clustered: bool = False
+    cluster_status: str | None = None
 
     @property
     def success(self) -> bool:
@@ -26,9 +30,7 @@ class ProcessingResult:
 def _collect_session_ids(
     events: Iterable[dict[str, Any]],
 ) -> list[str]:
-    """
-    Return unique session IDs in their first-seen order.
-    """
+    """Return unique session IDs in their first-seen order."""
 
     session_ids: list[str] = []
     seen: set[str] = set()
@@ -46,6 +48,19 @@ def _collect_session_ids(
         session_ids.append(session_id)
 
     return session_ids
+
+
+def _default_session_processors() -> list[SessionProcessor]:
+    """Return the configured Phase 6–12 processor boundary."""
+    if not has_app_context():
+        return []
+
+    if not current_app.config.get("RUN_ANALYSIS_ON_INGEST", True):
+        return []
+
+    from backend.analysis.session_analyzer import analyze_session
+
+    return [analyze_session]
 
 
 def _run_session_processors(
@@ -82,6 +97,36 @@ def _run_session_processors(
                 )
 
 
+def _run_reclustering(
+    result: ProcessingResult,
+) -> None:
+    if not has_app_context():
+        return
+
+    if not current_app.config.get("RUN_RECLUSTER_ON_INGEST", True):
+        result.cluster_status = "disabled"
+        return
+
+    if not result.affected_sessions:
+        result.cluster_status = "no_affected_sessions"
+        return
+
+    try:
+        from backend.analysis.clustering import recluster_session_analyses
+
+        cluster_result = recluster_session_analyses()
+        result.cluster_status = cluster_result["status"]
+        result.clustered = cluster_result["status"] == "clustered"
+    except Exception as exc:
+        result.processing_errors.append(
+            {
+                "stage": "clustering",
+                "error_type": type(exc).__name__,
+                "message": str(exc),
+            }
+        )
+
+
 def process_cowrie_events(
     events: Iterable[dict[str, Any]],
     *,
@@ -95,11 +140,9 @@ def process_cowrie_events(
     Only genuinely newly inserted events are used to determine
     affected sessions.
 
-    Optional session processors run after successful core
-    telemetry persistence.
-
-    Failures in optional processors are captured and do not
-    propagate back into the core ingestion path.
+    When session_processors is omitted, the configured default
+    behavioral-analysis processor is used. Explicit processor
+    lists retain the Phase 5 extension contract.
     """
 
     event_list = list(events)
@@ -109,43 +152,32 @@ def process_cowrie_events(
     if not event_list:
         return result
 
-    # ---------------------------------------------------------
-    # CORE TELEMETRY
-    # ---------------------------------------------------------
-    #
-    # This is the authoritative existing ingestion path.
-    #
-    # Do not create another database insertion mechanism here.
-    #
     inserted_events = ingest_events(
         event_list,
         return_inserted_events=True,
     )
 
     result.inserted_events = len(inserted_events)
-
-    # Only genuinely new events can cause a session to require
-    # downstream processing.
-    result.affected_sessions = _collect_session_ids(
-        inserted_events
-    )
-
-    # ---------------------------------------------------------
-    # OPTIONAL SESSION PROCESSING
-    # ---------------------------------------------------------
+    result.affected_sessions = _collect_session_ids(inserted_events)
 
     if not result.affected_sessions:
         return result
 
-    processors = list(session_processors or [])
+    if session_processors is None:
+        processors = _default_session_processors()
+    else:
+        processors = list(session_processors)
 
-    if not processors:
-        return result
+    if processors:
+        _run_session_processors(
+            result.affected_sessions,
+            processors,
+            result,
+        )
 
-    _run_session_processors(
-        result.affected_sessions,
-        processors,
-        result,
-    )
+    # Clustering is downstream of feature extraction and classification.
+    # A clustering failure is an optional-processing error, not a telemetry
+    # failure.
+    _run_reclustering(result)
 
     return result

@@ -104,7 +104,12 @@ def _update_session(
 
     if event.get("command") is not None:
         session.command_count += 1
-        
+
+    current_start = _to_utc_naive(session.start_time)
+    current_end = _to_utc_naive(session.end_time)
+    if current_start is not None and current_end is not None:
+        if current_end >= current_start:
+            session.duration = (current_end - current_start).total_seconds()
 
 def ingest_events(
     events: Iterable[dict[str, Any]],

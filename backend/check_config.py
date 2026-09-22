@@ -84,6 +84,17 @@ def main():
         "seconds",
     )
 
+    print(
+        "AbuseIPDB max age:",
+        Config.ABUSEIPDB_MAX_AGE_DAYS,
+        "days",
+    )
+
+    print(
+        "Run AbuseIPDB on ingest:",
+        Config.RUN_ABUSEIPDB_ON_INGEST,
+    )
+
     print("\nRisk")
     print("-" * 60)
 

@@ -124,6 +124,16 @@ class Config:
         86400,
     )
 
+    ABUSEIPDB_MAX_AGE_DAYS = _get_int(
+        "ABUSEIPDB_MAX_AGE_DAYS",
+        90,
+    )
+
+    RUN_ABUSEIPDB_ON_INGEST = _get_bool(
+        "RUN_ABUSEIPDB_ON_INGEST",
+        True,
+    )
+
     # --------------------------------------------------------
     # Risk
     # --------------------------------------------------------
@@ -207,3 +217,6 @@ class Config:
 class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    ABUSEIPDB_API_KEY = ""
+    ABUSEIPDB_ENABLED = False
+    RUN_ABUSEIPDB_ON_INGEST = False
