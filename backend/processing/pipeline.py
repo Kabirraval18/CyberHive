@@ -176,8 +176,27 @@ def process_cowrie_events(
         )
 
     # Clustering is downstream of feature extraction and classification.
-    # A clustering failure is an optional-processing error, not a telemetry
-    # failure.
     _run_reclustering(result)
+
+    # Final intelligence is deliberately downstream of core telemetry.
+    # Provider, risk, MITRE and alert failures are isolated from ingestion.
+    try:
+        from backend.analysis.finalize import finalize_session_intelligence
+        for session_id in result.affected_sessions:
+            try:
+                finalize_session_intelligence(session_id)
+            except Exception as exc:
+                result.processing_errors.append({
+                    "stage": "final_intelligence",
+                    "session_id": session_id,
+                    "error_type": type(exc).__name__,
+                    "message": str(exc),
+                })
+    except Exception as exc:
+        result.processing_errors.append({
+            "stage": "final_intelligence_import",
+            "error_type": type(exc).__name__,
+            "message": str(exc),
+        })
 
     return result

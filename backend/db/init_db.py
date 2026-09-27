@@ -32,6 +32,12 @@ def init_db(config_class=Config) -> None:
 
     with app.app_context():
         db.create_all()
+        from backend.models import User
+        if User.query.count() == 0 and app.config.get("ADMIN_PASSWORD"):
+            admin = User(username=app.config.get("ADMIN_USERNAME") or "admin", role="admin")
+            admin.set_password(app.config["ADMIN_PASSWORD"])
+            db.session.add(admin)
+            db.session.commit()
 
 
 if __name__ == "__main__":

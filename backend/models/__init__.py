@@ -5,14 +5,9 @@ from backend.models.mitre import MITREMapping
 from backend.models.risk import RiskScore
 from backend.models.session import AttackSession
 from backend.models.session_analysis import SessionAnalysis
-
+from backend.models.user import User
 
 __all__ = [
-    "Alert",
-    "AttackSession",
-    "CowrieEvent",
-    "IPIntelligence",
-    "MITREMapping",
-    "RiskScore",
-    "SessionAnalysis",
+    "Alert", "CowrieEvent", "IPIntelligence", "MITREMapping",
+    "RiskScore", "AttackSession", "SessionAnalysis", "User",
 ]

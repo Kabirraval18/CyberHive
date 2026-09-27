@@ -80,10 +80,8 @@ class Config:
     # Cowrie
     # --------------------------------------------------------
 
-    COWRIE_LOG_PATH = os.getenv(
-        "COWRIE_LOG_PATH",
-        "",
-    ).strip()
+    COWRIE_LOG_PATH = os.getenv("COWRIE_LOG_PATH", "").strip()
+    COWRIE_LOG_URL = os.getenv("COWRIE_LOG_URL", "").strip()
 
     RUN_ANALYSIS_ON_INGEST = _get_bool(
         "RUN_ANALYSIS_ON_INGEST",
@@ -204,10 +202,15 @@ class Config:
     # Logging
     # --------------------------------------------------------
 
-    LOG_LEVEL = os.getenv(
-        "LOG_LEVEL",
-        "INFO",
-    ).strip().upper()
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+
+    # Bootstrap authentication
+    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin").strip()
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "").strip()
+
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = _get_bool("SESSION_COOKIE_SECURE", False)
 
 
 # ------------------------------------------------------------
@@ -218,5 +221,8 @@ class TestConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     ABUSEIPDB_API_KEY = ""
+    VIRUSTOTAL_API_KEY = ""
     ABUSEIPDB_ENABLED = False
+    VIRUSTOTAL_ENABLED = False
     RUN_ABUSEIPDB_ON_INGEST = False
+    ADMIN_PASSWORD = ""

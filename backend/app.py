@@ -5,6 +5,7 @@ from backend.extensions import db
 
 from backend.routes.health import health_bp
 from backend.routes.api import api_bp
+from backend.routes.auth import auth_bp
 
 
 def create_app(config_class=Config):
@@ -23,6 +24,7 @@ def create_app(config_class=Config):
     # Register existing routes
     app.register_blueprint(health_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(auth_bp)
 
     return app
 
