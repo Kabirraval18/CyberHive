@@ -374,3 +374,8 @@ def test_activity_analytics_endpoint_preserves_precise_timestamps(client):
     assert activity[4]["activity_type"] == "event"
     assert activity[4]["event_id"] == "analytics-event-3"
     assert activity[4]["command"] == "uname -a"
+
+def test_session_filter_rejects_invalid_dates(app, client):
+    response = client.get('/api/sessions/filter?start=not-a-date')
+    assert response.status_code == 400
+    assert 'valid ISO-8601' in response.get_json()['error']

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from backend.models import AttackSession, CowrieEvent, SessionAnalysis, RiskScore, MITREMapping, Alert, User
 from backend.analysis.risk import calculate_risk
 from backend.analysis.mitre import map_session
@@ -48,3 +48,76 @@ def test_user_password_is_hashed(app):
         from backend.extensions import db
         u=User(username='tester',role='analyst'); u.set_password('password-123'); db.session.add(u); db.session.commit()
         assert u.password_hash!='password-123' and u.check_password('password-123') and not u.check_password('wrong')
+
+
+def test_session_expires_and_protected_endpoint_is_rejected(
+    app,
+    client,
+):
+    from backend.extensions import db
+    import time
+
+    # Short lifetime for deterministic testing.
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
+        seconds=2
+    )
+
+    app.config['SESSION_LIFETIME_SECONDS'] = 2
+
+    user = User(
+        username='expiry-user',
+        role='analyst',
+    )
+
+    user.set_password('password-123')
+
+    db.session.add(user)
+    db.session.commit()
+
+    response = client.post(
+        '/api/auth/login',
+        json={
+            'username': 'expiry-user',
+            'password': 'password-123',
+        },
+    )
+
+    assert response.status_code == 200
+
+    # Disable the test-only authentication bypass.
+    app.config['AUTH_TEST_BYPASS'] = False
+
+    # Do not extend the permanent-session lifetime on each request.
+    app.config['SESSION_REFRESH_EACH_REQUEST'] = False
+
+    valid_response = client.get('/api/sessions')
+
+    assert valid_response.status_code == 200
+
+    # Allow enough time to cross the signed-cookie timestamp boundary.
+    time.sleep(3)
+
+    expired = client.get('/api/sessions')
+
+    assert expired.status_code == 401
+
+    assert expired.get_json()['error'] == (
+        'Authentication required'
+    )
+
+
+def test_settings_endpoint_exposes_safe_configuration_only(app, client):
+    from backend.extensions import db
+    user = User(username='settings-user', role='analyst')
+    user.set_password('password-123')
+    db.session.add(user)
+    db.session.commit()
+
+    client.post('/api/auth/login', json={'username': 'settings-user', 'password': 'password-123'})
+    response = client.get('/api/settings')
+    assert response.status_code == 200
+    payload = response.get_json()['settings']
+    assert payload['risk_alert_threshold'] == 40
+    assert 'ABUSEIPDB_API_KEY' not in str(payload)
+    assert 'VIRUSTOTAL_API_KEY' not in str(payload)
+    assert 'SMTP_PASSWORD' not in str(payload)

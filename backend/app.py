@@ -17,6 +17,8 @@ def create_app(config_class=Config):
 
     # Load configuration
     app.config.from_object(config_class)
+    app.config.setdefault("PERMANENT_SESSION_LIFETIME", config_class.PERMANENT_SESSION_LIFETIME)
+    app.config.setdefault("SESSION_REFRESH_EACH_REQUEST", True)
 
     # Initialize database
     db.init_app(app)

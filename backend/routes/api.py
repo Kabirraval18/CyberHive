@@ -1,4 +1,4 @@
-﻿from datetime import timezone
+﻿from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, jsonify, request
 
@@ -526,17 +526,59 @@ def get_abuseipdb_intelligence():
     return jsonify(result), status_code
 
 # ============================================================
+# PHASE 22 SETTINGS / SAFE CONFIGURATION STATUS
+# ============================================================
+
+def _configured(value):
+    return bool(str(value or "").strip())
+
+
+@api_bp.get("/api/settings")
+def get_settings():
+    """Return safe, backend-authoritative operational configuration.
+
+    Secret values are deliberately never returned. Environment-managed
+    settings are shown as status/value metadata only.
+    """
+    return jsonify({
+        "success": True,
+        "settings": {
+            "risk_alert_threshold": int(current_app.config.get("RISK_ALERT_THRESHOLD", 40)),
+            "email_alerts_enabled": bool(current_app.config.get("EMAIL_ALERTS_ENABLED", False)),
+            "abuseipdb_enabled": bool(current_app.config.get("ABUSEIPDB_ENABLED", True)),
+            "abuseipdb_configured": _configured(current_app.config.get("ABUSEIPDB_API_KEY")),
+            "virustotal_enabled": bool(current_app.config.get("VIRUSTOTAL_ENABLED", True)),
+            "virustotal_configured": _configured(current_app.config.get("VIRUSTOTAL_API_KEY")),
+            "smtp_configured": all(_configured(current_app.config.get(name)) for name in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM")),
+            "cowrie_configured": _configured(current_app.config.get("COWRIE_LOG_URL")) or _configured(current_app.config.get("COWRIE_LOG_PATH")),
+            "cowrie_endpoint_type": "url" if _configured(current_app.config.get("COWRIE_LOG_URL")) else ("local_path" if _configured(current_app.config.get("COWRIE_LOG_PATH")) else "not_configured"),
+            "intel_cache_seconds": int(current_app.config.get("INTEL_CACHE_SECONDS", 86400)),
+            "dashboard_refresh_interval_ms": int(current_app.config.get("DASHBOARD_REFRESH_INTERVAL_MS", 5000)),
+            "session_lifetime_seconds": int(current_app.config.get("SESSION_LIFETIME_SECONDS", 3600)),
+            "session_cookie_secure": bool(current_app.config.get("SESSION_COOKIE_SECURE", False)),
+            "configuration_source": "environment",
+        },
+    }), 200
+
+
+# ============================================================
 # PHASE 13–21 INTELLIGENCE, INVESTIGATION, ALERTING, REPORTING
 # ============================================================
 from backend.auth import require_auth, require_role
 
 @api_bp.before_request
 def _api_auth_boundary():
-    if current_app.config.get('TESTING'):
+    if current_app.config.get('AUTH_TEST_BYPASS'):
         return None
+
     from backend.auth import current_user
+
     if current_user() is None:
-        return jsonify({'success':False,'error':'Authentication required'}),401
+        return jsonify({
+            'success': False,
+            'error': 'Authentication required'
+        }), 401
+
     return None
 
 
@@ -648,13 +690,75 @@ def security_analytics():
 
 @api_bp.get('/api/sessions/filter')
 def filter_sessions():
-    q=AttackSession.query
-    source=(request.args.get('source_ip') or '').strip(); behavior=(request.args.get('behavior') or '').strip(); severity=(request.args.get('severity') or '').strip()
-    if source: q=q.filter(AttackSession.source_ip==source)
-    sessions=q.order_by(AttackSession.start_time.desc()).all()
-    out=[]
-    for s in sessions:
-        if behavior and (not s.analysis or s.analysis.behavior_label!=behavior): continue
-        if severity and (not s.risk_scores or s.risk_scores[0].severity!=severity): continue
-        row=_serialize_session(s); row['behavior_label']=s.analysis.behavior_label if s.analysis else None; row['risk']=_serialize_risk(s.risk_scores[0] if s.risk_scores else None); out.append(row)
-    return jsonify({'success':True,'count':len(out),'sessions':out})
+    """Backend-authoritative session filtering with validated query parameters."""
+    from backend.models import IPIntelligence
+
+    q = AttackSession.query
+
+    source = (request.args.get('source_ip') or '').strip()
+    username = (request.args.get('username') or '').strip()
+    protocol = (request.args.get('protocol') or '').strip().lower()
+    behavior = (request.args.get('behavior') or '').strip()
+    severity = (request.args.get('severity') or '').strip()
+    country = (request.args.get('country') or '').strip()
+    start_raw = (request.args.get('start') or '').strip()
+    end_raw = (request.args.get('end') or '').strip()
+
+    if source:
+        q = q.filter(AttackSession.source_ip == source)
+    if username:
+        q = q.filter(AttackSession.username == username)
+    if protocol:
+        q = q.filter(db.func.lower(AttackSession.protocol) == protocol)
+    if behavior:
+        q = q.join(SessionAnalysis, SessionAnalysis.session_id == AttackSession.session_id).filter(
+            SessionAnalysis.behavior_label == behavior
+        )
+
+    def parse_date(value, field):
+        if not value:
+            return None, None
+        try:
+            parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc), None
+        except ValueError:
+            return None, f'{field} must be a valid ISO-8601 timestamp'
+
+    start_time, error = parse_date(start_raw, 'start')
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    end_time, error = parse_date(end_raw, 'end')
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    if start_time and end_time and start_time > end_time:
+        return jsonify({'success': False, 'error': 'start must be earlier than or equal to end'}), 400
+    if start_time:
+        q = q.filter(AttackSession.start_time >= start_time.replace(tzinfo=None))
+    if end_time:
+        q = q.filter(AttackSession.start_time <= end_time.replace(tzinfo=None))
+
+    sessions = q.order_by(AttackSession.start_time.desc()).all()
+
+    out = []
+    for session in sessions:
+        analysis = session.analysis
+        risk = session.risk_scores[0] if session.risk_scores else None
+
+        if severity and (not risk or risk.severity != severity):
+            continue
+
+        if country:
+            intel = IPIntelligence.query.filter_by(ip_address=session.source_ip).all()
+            countries = {str(row.country).strip().lower() for row in intel if row.country}
+            if country.lower() not in countries:
+                continue
+
+        row = _serialize_session(session)
+        row['behavior_label'] = analysis.behavior_label if analysis else None
+        row['risk'] = _serialize_risk(risk)
+        row['country'] = next((row.country for row in IPIntelligence.query.filter_by(ip_address=session.source_ip).all() if row.country), None)
+        out.append(row)
+
+    return jsonify({'success': True, 'count': len(out), 'sessions': out})

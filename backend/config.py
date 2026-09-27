@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -138,7 +139,7 @@ class Config:
 
     RISK_ALERT_THRESHOLD = _get_int(
         "RISK_ALERT_THRESHOLD",
-        80,
+        40,
     )
 
     RISK_ALERT_THRESHOLD = max(
@@ -212,6 +213,27 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _get_bool("SESSION_COOKIE_SECURE", False)
 
+    SESSION_LIFETIME_SECONDS = max(
+        60,
+        _get_int("SESSION_LIFETIME_SECONDS", 3600),
+    )
+
+    PERMANENT_SESSION_LIFETIME = timedelta(
+        seconds=SESSION_LIFETIME_SECONDS
+    )
+
+    SESSION_REFRESH_EACH_REQUEST = True
+
+    AUTH_TEST_BYPASS = _get_bool(
+        "AUTH_TEST_BYPASS",
+        False,
+    )
+
+    DASHBOARD_REFRESH_INTERVAL_MS = max(
+        1000,
+        _get_int("DASHBOARD_REFRESH_INTERVAL_MS", 5000),
+    )
+
 
 # ------------------------------------------------------------
 # Test configuration
@@ -219,6 +241,7 @@ class Config:
 
 class TestConfig(Config):
     TESTING = True
+    AUTH_TEST_BYPASS = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     ABUSEIPDB_API_KEY = ""
     VIRUSTOTAL_API_KEY = ""
