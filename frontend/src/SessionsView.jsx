@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   filterSessions,
 } from './api'
@@ -11,6 +11,7 @@ function SessionsView({ onOpenInvestigation }) {
   const [sourceIp, setSourceIp] = useState('')
   const [behavior, setBehavior] = useState('')
   const [severity, setSeverity] = useState('')
+  const [availableBehaviors, setAvailableBehaviors] = useState([])
 
   const loadSessions = async () => {
     try {
@@ -71,10 +72,25 @@ function SessionsView({ onOpenInvestigation }) {
             )
         }
 
-        setSessions(
-            Array.isArray(response.sessions)
-            ? response.sessions
-            : [],
+        const initialSessions = Array.isArray(
+          response.sessions,
+        )
+          ? response.sessions
+          : []
+
+        setSessions(initialSessions)
+
+        setAvailableBehaviors(
+          [
+            ...new Set(
+              initialSessions
+                .map(
+                  (session) =>
+                    session.behavior_label,
+                )
+                .filter(Boolean),
+            ),
+          ].sort(),
         )
         } catch (err) {
         if (!cancelled) {
@@ -98,15 +114,6 @@ function SessionsView({ onOpenInvestigation }) {
     }
     }, [])
 
-  const behaviors = useMemo(() => {
-    return [
-      ...new Set(
-        sessions
-          .map((session) => session.behavior_label)
-          .filter(Boolean),
-      ),
-    ].sort()
-  }, [sessions])
 
   const formatDate = (value) => {
     if (!value) {
@@ -189,7 +196,7 @@ function SessionsView({ onOpenInvestigation }) {
               All behaviors
             </option>
 
-            {behaviors.map((item) => (
+            {availableBehaviors.map((item) => (
               <option
                 key={item}
                 value={item}
