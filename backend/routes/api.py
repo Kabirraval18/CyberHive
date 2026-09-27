@@ -594,23 +594,129 @@ def _serialize_mitre(m):
 
 @api_bp.get('/api/sessions/by-session-id/<path:session_id>/investigation')
 def get_investigation(session_id):
-    from backend.models import IPIntelligence, MITREMapping
-    from backend.analysis.recommendations import generate_recommendations
-    session=AttackSession.query.filter_by(session_id=session_id).one_or_none()
-    if not session: return jsonify({'success':False,'error':'Session not found'}),404
-    events=[_serialize_event(e) for e in session.events.order_by(CowrieEvent.timestamp.asc()).all()]
-    intel=[]
+    from backend.models import IPIntelligence
+    from backend.analysis.recommendations import (
+        generate_recommendations,
+    )
+
+    session = AttackSession.query.filter_by(
+        session_id=session_id
+    ).one_or_none()
+
+    if not session:
+        return jsonify({
+            'success': False,
+            'error': 'Session not found',
+        }), 404
+
+    raw_events = (
+        session.events
+        .order_by(CowrieEvent.timestamp.asc())
+        .all()
+    )
+
+    events = [
+        _serialize_event(event)
+        for event in raw_events
+    ]
+
+    # --------------------------------------------------------
+    # Commands
+    # --------------------------------------------------------
+    #
+    # Commands are derived from the actual stored Cowrie
+    # command events. No commands are fabricated.
+    commands = [
+        event.command
+        for event in raw_events
+        if (
+            event.event_type == 'cowrie.command.input'
+            and event.command
+            and str(event.command).strip()
+        )
+    ]
+
+    # --------------------------------------------------------
+    # Authentication activity
+    # --------------------------------------------------------
+    #
+    # Authentication events are taken directly from the
+    # stored Cowrie login-success/login-failed events.
+    authentication_events = [
+        _serialize_event(event)
+        for event in raw_events
+        if event.event_type in {
+            'cowrie.login.failed',
+            'cowrie.login.success',
+        }
+    ]
+
+    # --------------------------------------------------------
+    # Threat intelligence
+    # --------------------------------------------------------
+    intel = []
+
     if session.source_ip:
-        intel=[{
-            'provider':r.provider,'ip_address':r.ip_address,'reputation':r.reputation,'abuse_confidence':r.abuse_confidence,
-            'report_count':r.report_count,'country':r.country,'asn':r.asn,'isp':r.isp,
-            'category_data':r.category_data,'provider_metadata':r.provider_metadata,
-            'retrieved_at':_serialize_datetime(r.retrieved_at),'expires_at':_serialize_datetime(r.expires_at)
-        } for r in IPIntelligence.query.filter_by(ip_address=session.source_ip).all()]
-    return jsonify({'success':True,'session':_serialize_session(session),'analysis':_serialize_analysis(session.analysis),
-                    'events':events,'threat_intelligence':intel,'risk':_serialize_risk(session.risk_scores[0] if session.risk_scores else None),
-                    'mitre':[_serialize_mitre(m) for m in session.mitre_mappings],
-                    'recommendations':generate_recommendations(session)})
+        intel = [
+            {
+                'provider': row.provider,
+                'ip_address': row.ip_address,
+                'reputation': row.reputation,
+                'abuse_confidence': row.abuse_confidence,
+                'report_count': row.report_count,
+                'country': row.country,
+                'asn': row.asn,
+                'isp': row.isp,
+                'category_data': row.category_data,
+                'provider_metadata': row.provider_metadata,
+                'retrieved_at': _serialize_datetime(
+                    row.retrieved_at
+                ),
+                'expires_at': _serialize_datetime(
+                    row.expires_at
+                ),
+            }
+            for row in IPIntelligence.query.filter_by(
+                ip_address=session.source_ip
+            ).all()
+        ]
+
+    return jsonify({
+        'success': True,
+
+        'session': _serialize_session(
+            session
+        ),
+
+        'analysis': _serialize_analysis(
+            session.analysis
+        ),
+
+        'events': events,
+
+        'commands': commands,
+
+        'authentication_events': (
+            authentication_events
+        ),
+
+        'threat_intelligence': intel,
+
+        'risk': _serialize_risk(
+            session.risk_scores[0]
+            if session.risk_scores
+            else None
+        ),
+
+        'mitre': [
+            _serialize_mitre(mapping)
+            for mapping in session.mitre_mappings
+        ],
+
+        'recommendations': (
+            generate_recommendations(session)
+        ),
+    })
 
 @api_bp.get('/api/threat-intelligence/virustotal')
 def get_virustotal_intelligence():

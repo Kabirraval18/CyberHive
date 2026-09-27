@@ -3337,7 +3337,29 @@ html.lenis body {
 }
 
 .mitre-list {
-  display: grid;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 8px;
+
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.mitre-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mitre-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mitre-list::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.mitre-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .mitre-item {
@@ -3489,7 +3511,28 @@ html.lenis body {
 }
 
 .investigation-timeline {
+  max-height: 500px;
+  overflow-y: auto;
   padding: 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.investigation-timeline::-webkit-scrollbar {
+  width: 6px;
+}
+
+.investigation-timeline::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.investigation-timeline::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.investigation-timeline::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .investigation-event {
@@ -3608,7 +3651,28 @@ html.lenis body {
 }
 
 .command-list {
+  max-height: 360px;
+  overflow-y: auto;
   padding: 7px 20px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.command-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.command-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.command-list::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 999px;
+}
+
+.command-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 
 .command-item {
@@ -4663,6 +4727,18 @@ html.lenis body {
 
   .settings-view {
     padding-top: 3rem;
+  }
+
+  .command-list {
+    max-height: 300px;
+  }
+
+  .investigation-timeline {
+    max-height: 400px;
+  }
+
+  .mitre-list {
+    max-height: 400px;
   }
 }
 

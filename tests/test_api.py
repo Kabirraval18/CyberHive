@@ -379,3 +379,121 @@ def test_session_filter_rejects_invalid_dates(app, client):
     response = client.get('/api/sessions/filter?start=not-a-date')
     assert response.status_code == 400
     assert 'valid ISO-8601' in response.get_json()['error']
+
+
+def test_investigation_endpoint_returns_commands_and_authentication_events(
+    app,
+    client,
+):
+    from backend.extensions import db
+
+    session = AttackSession(
+        session_id="investigation-evidence-session",
+        source_ip="127.0.0.1",
+        protocol="ssh",
+        username="root",
+    )
+
+    command_one = CowrieEvent(
+        event_id="investigation-command-1",
+        session_id="investigation-evidence-session",
+        timestamp=datetime(
+            2026,
+            8,
+            19,
+            10,
+            0,
+            tzinfo=timezone.utc,
+        ),
+        source_ip="127.0.0.1",
+        event_type="cowrie.command.input",
+        username="root",
+        command="whoami",
+    )
+
+    command_two = CowrieEvent(
+        event_id="investigation-command-2",
+        session_id="investigation-evidence-session",
+        timestamp=datetime(
+            2026,
+            8,
+            19,
+            10,
+            0,
+            1,
+            tzinfo=timezone.utc,
+        ),
+        source_ip="127.0.0.1",
+        event_type="cowrie.command.input",
+        username="root",
+        command="uname -a",
+    )
+
+    failed_login = CowrieEvent(
+        event_id="investigation-login-failed",
+        session_id="investigation-evidence-session",
+        timestamp=datetime(
+            2026,
+            8,
+            19,
+            9,
+            59,
+            50,
+            tzinfo=timezone.utc,
+        ),
+        source_ip="127.0.0.1",
+        event_type="cowrie.login.failed",
+        username="root",
+    )
+
+    successful_login = CowrieEvent(
+        event_id="investigation-login-success",
+        session_id="investigation-evidence-session",
+        timestamp=datetime(
+            2026,
+            8,
+            19,
+            9,
+            59,
+            55,
+            tzinfo=timezone.utc,
+        ),
+        source_ip="127.0.0.1",
+        event_type="cowrie.login.success",
+        username="root",
+    )
+
+    db.session.add(session)
+    db.session.add(command_one)
+    db.session.add(command_two)
+    db.session.add(failed_login)
+    db.session.add(successful_login)
+    db.session.commit()
+
+    response = client.get(
+        "/api/sessions/by-session-id/"
+        "investigation-evidence-session/investigation"
+    )
+
+    assert response.status_code == 200
+
+    payload = response.get_json()
+
+    assert payload["success"] is True
+
+    assert payload["commands"] == [
+        "whoami",
+        "uname -a",
+    ]
+
+    assert len(
+        payload["authentication_events"]
+    ) == 2
+
+    assert [
+        event["event_type"]
+        for event in payload["authentication_events"]
+    ] == [
+        "cowrie.login.failed",
+        "cowrie.login.success",
+    ]
