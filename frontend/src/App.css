@@ -4730,3 +4730,18 @@ html.lenis body {
     grid-template-columns: 1fr;
   }
 }
+
+.alert-risk em {
+  color: var(--muted);
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.alert-risk-explanation {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}

@@ -121,3 +121,88 @@ def test_settings_endpoint_exposes_safe_configuration_only(app, client):
     assert 'ABUSEIPDB_API_KEY' not in str(payload)
     assert 'VIRUSTOTAL_API_KEY' not in str(payload)
     assert 'SMTP_PASSWORD' not in str(payload)
+
+def test_duplicate_alert_is_suppressed_when_risk_changes(
+    app,
+    monkeypatch,
+):
+    from backend.extensions import db
+    from backend.analysis.finalize import (
+        finalize_session_intelligence,
+    )
+
+    session = AttackSession(
+        session_id="duplicate-alert-session",
+        source_ip="203.0.113.200",
+        protocol="ssh",
+        username="root",
+    )
+
+    db.session.add(session)
+    db.session.commit()
+
+    risk_results = iter([
+        {
+            "score": 44,
+            "severity": "Medium",
+            "contributing_factors": [
+                {
+                    "evidence": (
+                        "Reconnaissance activity detected."
+                    )
+                }
+            ],
+        },
+        {
+            "score": 49,
+            "severity": "Medium",
+            "contributing_factors": [
+                {
+                    "evidence": (
+                        "Additional discovery activity detected."
+                    )
+                }
+            ],
+        },
+    ])
+
+    monkeypatch.setattr(
+        "backend.analysis.finalize.calculate_risk",
+        lambda session_id: next(risk_results),
+    )
+
+    monkeypatch.setattr(
+        "backend.analysis.finalize.map_session",
+        lambda session_id: [],
+    )
+
+    monkeypatch.setattr(
+        "backend.analysis.finalize.send_alert_email",
+        lambda alert, context: {
+            "success": True,
+            "status": "sent",
+        },
+    )
+
+    first = finalize_session_intelligence(
+        "duplicate-alert-session"
+    )
+
+    second = finalize_session_intelligence(
+        "duplicate-alert-session"
+    )
+
+    alerts = Alert.query.filter_by(
+        session_id="duplicate-alert-session"
+    ).all()
+
+    assert len(alerts) == 1
+    assert alerts[0].risk_score == 44
+    assert alerts[0].severity == "Medium"
+
+    assert first["alert"]["created"] is True
+    assert second["alert"]["created"] is False
+    assert (
+        second["alert"]["status"]
+        == "duplicate_alert_suppressed"
+    )

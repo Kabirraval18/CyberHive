@@ -46,15 +46,26 @@ def finalize_session_intelligence(session_id):
         existing = (
             Alert.query
             .filter_by(session_id=session_id)
-            .order_by(Alert.created_at.desc())
+            .order_by(Alert.created_at.asc())
             .first()
         )
 
-        if (
-            existing is None
-            or existing.risk_score != risk["score"]
-            or existing.severity != risk["severity"]
-        ):
+        # A session receives at most one persistent alert during
+        # its lifetime. Later risk recalculations must not create
+        # duplicate alerts merely because the score changed.
+        if existing is not None:
+            results["alert"] = {
+                "created": False,
+                "status": "duplicate_alert_suppressed",
+                "alert_id": existing.id,
+            }
+
+            results["email"] = {
+                "success": False,
+                "status": "duplicate_alert_suppressed",
+            }
+
+        else:
             alert = Alert(
                 session_id=session_id,
                 risk_score=risk["score"],
@@ -72,6 +83,11 @@ def finalize_session_intelligence(session_id):
             db.session.add(alert)
             db.session.commit()
 
+            results["alert"] = {
+                "created": True,
+                "alert_id": alert.id,
+            }
+
             results["email"] = send_alert_email(
                 alert,
                 context={
@@ -83,12 +99,6 @@ def finalize_session_intelligence(session_id):
                     ),
                 },
             )
-
-        else:
-            results["email"] = {
-                "success": False,
-                "status": "duplicate_alert_suppressed",
-            }
 
     else:
         results["email"] = {

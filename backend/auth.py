@@ -1,6 +1,5 @@
 from backend.extensions import db
 from functools import wraps
-from certifi.__main__ import args
 from flask import session, jsonify, current_app
 from backend.models import User
 

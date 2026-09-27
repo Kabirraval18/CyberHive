@@ -454,11 +454,18 @@ function AlertsView({
                     {alert.message ||
                       'No alert message available.'}
                   </p>
+
+                  <div className="alert-risk-explanation">
+                    This score records the session risk when the
+                    alert was created. The current session risk may
+                    change as additional telemetry is processed.
+                  </div>
+
                 </div>
 
                 <div className="alert-risk">
                   <span>
-                    RISK
+                    RISK AT TRIGGER
                   </span>
 
                   <strong>
@@ -468,6 +475,10 @@ function AlertsView({
                   <small>
                     / 100
                   </small>
+
+                  <em>
+                    Historical alert score
+                  </em>
                 </div>
               </div>
 
