@@ -8,11 +8,14 @@ import {
   logout,
   getDashboard,
   getActivity,
+  getSettings,
+  getSecurityAnalytics,
 } from './api'
 import SessionsView from './SessionsView'
 import InvestigationView from './InvestigationView'
 import AlertsView from './AlertsView'
 import ReportsView from './ReportsView'
+import SettingsView from './SettingsView'
 import './App.css'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -118,6 +121,8 @@ function App() {
     let firstLoad = true
     let timeoutId = null
 
+    let refreshInterval = 5000
+
     const loadDashboard = async () => {
       try {
         if (firstLoad) {
@@ -125,9 +130,11 @@ function App() {
           setError(null)
         }
 
-        const [dashboardData, activityData] = await Promise.all([
+        const [dashboardData, activityData, settingsData, securityAnalyticsData] = await Promise.all([
           getDashboard(),
           getActivity(),
+          getSettings(),
+          getSecurityAnalytics(),
         ])
 
         if (!dashboardData.success) {
@@ -141,9 +148,17 @@ function App() {
             activityData.error || 'Unable to load analytics data',
           )
         }
+        if (!securityAnalyticsData.success) {
+          throw new Error(
+            securityAnalyticsData.error || 'Unable to load security analytics',
+          )
+        }
 
         if (active) {
-          setDashboard(dashboardData)
+          setDashboard({ ...dashboardData, securityAnalytics: securityAnalyticsData.analytics || null })
+          if (settingsData?.success) {
+            refreshInterval = Math.max(1000, Number(settingsData.settings?.dashboard_refresh_interval_ms) || 5000)
+          }
 
           setActivity(
             Array.isArray(activityData.activity)
@@ -175,7 +190,7 @@ function App() {
 
           timeoutId = window.setTimeout(
             loadDashboard,
-            5000,
+            refreshInterval,
           )
         }
       }
@@ -639,6 +654,18 @@ function App() {
                 REPORTS
               </button>
 
+              <button
+                type="button"
+                className={
+                  view === 'settings'
+                    ? 'app-nav-button active'
+                    : 'app-nav-button'
+                }
+                onClick={() => setView('settings')}
+              >
+                SETTINGS
+              </button>
+
           </nav>
 
           <span className="nav-user">
@@ -680,6 +707,8 @@ function App() {
           />
         ) : view === 'reports' ? (
           <ReportsView />
+        ) : view === 'settings' ? (
+          <SettingsView />
         ) : (
           <>
             <section className="hero-section">
@@ -959,6 +988,47 @@ function App() {
               </article>
             </section>
 
+            <section className="intelligence-summary-layout">
+              <article className="panel intelligence-summary-panel">
+                <div className="panel-top">
+                  <div>
+                    <span className="eyebrow">BEHAVIORAL INTELLIGENCE</span>
+                    <h2>Observed behavior</h2>
+                  </div>
+                </div>
+                <DistributionList
+                  items={dashboard.securityAnalytics?.behaviors || {}}
+                  empty="No analyzed sessions yet."
+                />
+              </article>
+
+              <article className="panel intelligence-summary-panel">
+                <div className="panel-top">
+                  <div>
+                    <span className="eyebrow">RISK SIGNAL</span>
+                    <h2>Severity distribution</h2>
+                  </div>
+                </div>
+                <DistributionList
+                  items={dashboard.securityAnalytics?.risk_severity || {}}
+                  empty="No persisted risk results yet."
+                />
+              </article>
+
+              <article className="panel intelligence-summary-panel">
+                <div className="panel-top">
+                  <div>
+                    <span className="eyebrow">ATT&CK COVERAGE</span>
+                    <h2>Observed techniques</h2>
+                  </div>
+                </div>
+                <DistributionList
+                  items={dashboard.securityAnalytics?.mitre_techniques || {}}
+                  empty="No evidence-backed mappings yet."
+                />
+              </article>
+            </section>
+
             <section className="secondary-layout">
               <article className="session-panel panel">
                 <div className="panel-top">
@@ -1083,6 +1153,32 @@ function StatusPill({ label }) {
     <div className="status-pill">
       <span className="status-dot" />
       {label}
+    </div>
+  )
+}
+
+function DistributionList({ items, empty }) {
+  const entries = Object.entries(items || {}).sort((a, b) => b[1] - a[1])
+
+  if (!entries.length) {
+    return <p className="distribution-empty">{empty}</p>
+  }
+
+  const max = Math.max(...entries.map(([, value]) => Number(value) || 0), 1)
+
+  return (
+    <div className="distribution-list">
+      {entries.slice(0, 8).map(([label, value]) => (
+        <div className="distribution-row" key={label}>
+          <div className="distribution-label">
+            <span>{label}</span>
+            <strong>{value}</strong>
+          </div>
+          <div className="distribution-track">
+            <span style={{ width: `${Math.max(4, ((Number(value) || 0) / max) * 100)}%` }} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

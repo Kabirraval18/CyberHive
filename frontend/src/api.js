@@ -74,6 +74,10 @@ export async function getStats() {
   return apiRequest('/api/stats')
 }
 
+export async function getSettings() {
+  return apiRequest(`/api/settings?_=${Date.now()}`)
+}
+
 // ------------------------------------------------------
 // Sessions
 // ------------------------------------------------------
